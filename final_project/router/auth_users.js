@@ -1,30 +1,74 @@
+// Import necessary modules
 const express = require('express');
 const jwt = require('jsonwebtoken');
 let books = require("./booksdb.js");
 const regd_users = express.Router();
 
-let users = [];
+// Users and helper functions
+let users = [
+  { username: "user1", password: "pass1" },
+  { username: "user2", password: "pass2" }
+];
 
-const isValid = (username)=>{ //returns boolean
-//write code to check is the username is valid
+const isValid = (username) => {
+  return username.trim() !== '';
 }
 
-const authenticatedUser = (username,password)=>{ //returns boolean
-//write code to check if username and password match the one we have in records.
+const authenticatedUser = (username, password) => {
+  username = username.trim();
+  password = password.trim();
+
+  const user = users.find(u => u.username === username && u.password === password);
+  return !!user;
 }
 
-//only registered users can login
-regd_users.post("/login", (req,res) => {
-  //Write your code here
-  return res.status(300).json({message: "Yet to be implemented"});
+// Authentication middleware
+const authenticateUser = (req, res, next) => {
+  const token = req.header('Authorization');
+  if (!token) {
+    return res.status(401).json({ message: 'Unauthorized' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET || 'your-default-secret');
+    req.user = decoded;
+    next();
+  } catch (error) {
+    return res.status(401).json({ message: 'Unauthorized' });
+  }
+};
+
+regd_users.use(authenticateUser);
+
+// Login route
+regd_users.post("/login", (req, res) => {
+  const { username, password } = req.body;
+  console.log("Received username:", username);
+  console.log("Received password:", password);
+
+  if (authenticatedUser(username, password)) {
+    const accessTokenSecret = process.env.ACCESS_TOKEN_SECRET || 'your-default-secret';
+    const accessToken = jwt.sign({ username: username }, accessTokenSecret);
+    res.json({ accessToken: accessToken });
+  } else {
+    res.status(400).send("Username or password incorrect");
+  }
 });
 
-// Add a book review
-regd_users.put("/auth/review/:isbn", (req, res) => {
-  //Write your code here
-  return res.status(300).json({message: "Yet to be implemented"});
+// Add or modify a book review route
+regd_users.post("/review", (req, res) => {
+  const { isbn, review } = req.body;
+  if (isbn in books) {
+    books[isbn].reviews[req.user.username] = review;
+    res.status(200).send("Review added/modified successfully");
+  }
+  else {
+    res.status(400).send("ISBN not found");
+  }
 });
 
 module.exports.authenticated = regd_users;
 module.exports.isValid = isValid;
 module.exports.users = users;
+
+
