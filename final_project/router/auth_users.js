@@ -56,16 +56,24 @@ regd_users.post("/login", (req, res) => {
 });
 
 // Add or modify a book review route
-regd_users.post("/review", (req, res) => {
-  const { isbn, review } = req.body;
-  if (isbn in books) {
+regd_users.post("/auth/review/:isbn", (req, res) => {
+  const isbn = req.params.isbn;
+  const review = req.body.review;
+
+  // Check if the ISBN exists in the books object
+  if (isbn && books[isbn]) {
+    // Create the 'reviews' object if it doesn't exist
+    books[isbn].reviews = books[isbn].reviews || {};
+
+    // Add or modify the review
     books[isbn].reviews[req.user.username] = review;
     res.status(200).send("Review added/modified successfully");
-  }
-  else {
-    res.status(400).send("ISBN not found");
+  } else {
+    res.status(404).send("Book not found");
   }
 });
+
+
 
 module.exports.authenticated = regd_users;
 module.exports.isValid = isValid;
